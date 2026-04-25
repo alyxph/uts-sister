@@ -1,75 +1,64 @@
-# Pub-Sub Log Aggregator
+# uts-sister
 
-> UTS Sistem Terdistribusi dan Parallel — Idempotent Consumer + Persistent Deduplication
+Projek UTS Sistem Terdistribusi — Pub-Sub Log Aggregator dengan idempotent consumer dan deduplication pakai SQLite.
 
-Link YouTube (Demo): _[https://youtu.be/ZCJkv1Li8bo]_
+📹 **Demo YouTube**: https://youtu.be/ZCJkv1Li8bo
 
-Link Dokumen Laporan: [Google Drive](https://drive.google.com/file/d/18NTurz9DJPDY7oJHdKc9KNrA2jhmq7ys/view?usp=sharing)
+📄 **Laporan**: [Google Drive](https://drive.google.com/file/d/18NTurz9DJPDY7oJHdKc9KNrA2jhmq7ys/view?usp=sharing)
 
----
+## Tentang Projek
 
-## Fitur Utama
+Ini adalah log aggregator sederhana yang pakai model publish-subscribe. Publisher ngirim event ke aggregator lewat REST API, terus aggregator bakal cek apakah event tersebut sudah pernah diterima atau belum (deduplication). Kalau sudah pernah, event-nya di-drop biar ga duplikat.
 
-- **POST /publish** — Terima single event atau batch
-- **GET /events** — Daftar event unik yang telah diproses
-- **GET /stats** — Statistik real-time (received, unique, duplicates, uptime)
-- **Idempotent consumer** — Event yang sama tidak diproses lebih dari sekali
-- **Persistent dedup store** — SQLite WAL; tahan restart container
-- **At-least-once simulation** — Publisher mengirim duplikat secara sengaja
+Fitur yang diimplementasi:
+- Publish event (single / batch) lewat `POST /publish`
+- Lihat semua event yang sudah diproses di `GET /events`
+- Cek statistik (jumlah received, unique, duplikat) di `GET /stats`
+- Dedup store pakai SQLite (WAL mode), jadi data tetap ada walau container di-restart
+- Publisher simulator yang sengaja ngirim event duplikat buat testing
 
----
+## Cara Jalankan
 
-## Cara Build & Run
-
-### Minimal (Docker saja)
+### Pakai Docker
 
 ```bash
-# Build image
 docker build -t uts-aggregator .
 
-# Run container (dedup store ephemeral, reset saat restart)
+# jalankan biasa
 docker run -p 8080:8080 uts-aggregator
 
-# Run dengan persistent volume (dedup bertahan setelah restart)
+# kalau mau data dedup-nya persist (ga hilang pas restart)
 docker run -p 8080:8080 -v uts-data:/app/data uts-aggregator
 ```
 
-### Dengan Docker Compose (Bonus — dua service terpisah)
+### Pakai Docker Compose
+
+Ini jalanin 2 service sekaligus (aggregator + publisher otomatis).
 
 ```bash
-# Build & jalankan aggregator + publisher secara bersamaan
 docker compose up --build
 
-# Lihat log real-time
+# buat liat log
 docker compose logs -f
 
-# Hentikan semua service
+# stop
 docker compose down
 ```
 
----
-
-## Menjalankan Unit Tests
+## Testing
 
 ```bash
-# Instal dependencies (Python 3.11+)
 pip install -r requirements.txt
-
-# Jalankan semua tests
 pytest tests/ -v
-
-# Output yang diharapkan: 10 tests passed
 ```
 
----
+Ada 10 test case yang cover validasi schema, deduplication, batch publish, dll.
 
-## Endpoint API
+## Endpoint
 
-### `POST /publish`
+### POST /publish
 
-Terima single event atau batch.
-
-**Single event:**
+Kirim satu event:
 ```bash
 curl -X POST http://localhost:8080/publish \
   -H "Content-Type: application/json" \
@@ -82,7 +71,7 @@ curl -X POST http://localhost:8080/publish \
   }'
 ```
 
-**Batch:**
+Kirim batch:
 ```bash
 curl -X POST http://localhost:8080/publish \
   -H "Content-Type: application/json" \
@@ -94,88 +83,81 @@ curl -X POST http://localhost:8080/publish \
   }'
 ```
 
-### `GET /events?topic=<topic>`
+### GET /events
 
 ```bash
-# Semua event unik
 curl http://localhost:8080/events
 
-# Filter by topic
+# filter berdasarkan topic
 curl "http://localhost:8080/events?topic=logs.app.error"
 ```
 
-### `GET /stats`
+### GET /stats
 
 ```bash
 curl http://localhost:8080/stats
-# Response:
-# {
-#   "received": 7500,
-#   "unique_processed": 5000,
-#   "duplicate_dropped": 2500,
-#   "topics": ["logs.app.error", "metrics.cpu"],
-#   "queue_size": 0,
-#   "uptime_seconds": 42.1
-# }
 ```
 
-### `GET /health`
+Contoh response:
+```json
+{
+  "received": 7500,
+  "unique_processed": 5000,
+  "duplicate_dropped": 2500,
+  "topics": ["logs.app.error", "metrics.cpu"],
+  "queue_size": 0,
+  "uptime_seconds": 42.1
+}
+```
+
+### GET /health
 
 ```bash
 curl http://localhost:8080/health
 ```
 
----
+## Contoh Tes Idempotency
 
-## Demonstrasi Idempotency & Deduplication
+Kirim event yang sama 3x, harusnya cuma 1 yang masuk:
 
 ```bash
-# Kirim event yang sama 3 kali
 for i in 1 2 3; do
   curl -s -X POST http://localhost:8080/publish \
     -H "Content-Type: application/json" \
     -d '{"topic":"demo","event_id":"SAME-ID-001","timestamp":"2024-01-01T00:00:00Z","source":"test","payload":{}}'
 done
 
-# Cek: hanya 1 event tersimpan, 2 didrop
 curl http://localhost:8080/stats
-# "unique_processed": 1, "duplicate_dropped": 2
+# unique_processed: 1, duplicate_dropped: 2
 ```
 
----
-
-## Struktur Direktori
+## Struktur Folder
 
 ```
 uts-aggregator/
 ├── src/
-│   ├── __init__.py
-│   ├── main.py          # FastAPI app, endpoints, lifespan
-│   ├── models.py        # Pydantic Event model + validation
-│   ├── dedup_store.py   # SQLite-backed deduplication store
-│   ├── queue_manager.py # asyncio.Queue + idempotent consumer
-│   └── publisher.py     # Standalone publisher simulator
+│   ├── main.py            # app utama (FastAPI + endpoint)
+│   ├── models.py          # model Event (Pydantic)
+│   ├── dedup_store.py     # dedup pakai SQLite
+│   ├── queue_manager.py   # queue + consumer
+│   └── publisher.py       # publisher simulator
 ├── tests/
-│   └── test_aggregator.py  # 10 unit/integration tests
+│   └── test_aggregator.py
+├── Dockerfile
+├── Dockerfile.publisher
+├── docker-compose.yml
 ├── requirements.txt
-├── Dockerfile              # Aggregator image (non-root, python:3.11-slim)
-├── Dockerfile.publisher    # Publisher image (Docker Compose bonus)
-├── docker-compose.yml      # Bonus: dua service terpisah
-├── report.md               # Laporan teori T1–T8 + sitasi APA
-└── README.md               # File ini
+├── report.md
+└── README.md
 ```
 
----
+## Batasan
 
-## Asumsi & Batasan
-
-1. **Single-node** — Sistem berjalan dalam satu container/proses. Tidak mendukung clustering.
-2. **In-memory queue** — asyncio.Queue tidak persistent. Event yang ada di queue saat crash akan hilang (acceptable untuk at-least-once karena publisher akan retry).
-3. **SQLite concurrency** — Cocok untuk satu proses dengan multiple thread/coroutine. Tidak cocok untuk multi-process tanpa connection pooling.
-4. **No authentication** — Endpoint publik tanpa auth. Untuk produksi, tambahkan API key atau JWT.
-5. **Ordering** — Partial ordering berdasarkan waktu pemrosesan. Total ordering global tidak dijamin.
-
----
+- Cuma jalan di satu node (ga support clustering)
+- Queue-nya in-memory (asyncio.Queue), jadi kalau crash sebelum diproses ya hilang. Tapi publisher bakal retry jadi masih aman
+- SQLite oke buat single process, tapi kalau multi-process perlu ganti ke DB lain
+- Belum ada auth (buat produksi harusnya pakai API key / JWT)
+- Ordering cuma partial, ga dijamin urutan global-nya
 
 ## Referensi
 
