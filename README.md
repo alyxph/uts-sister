@@ -177,21 +177,6 @@ uts-aggregator/
 
 ---
 
-## Video Demo
-
-Link YouTube: _[Tambahkan link YouTube]_
-
-Durasi: 5–8 menit  
-Konten:
-1. Build image dan run container
-2. Publish event duplikat — tampilkan idempotency di log
-3. GET /events dan GET /stats sebelum/sesudah duplikat
-4. Restart container — dedup store persisten mencegah reprocessing
-5. Ringkasan arsitektur (30–60 detik)
-
----
-
 ## Referensi
 
 Tanenbaum, A. S., & Van Steen, M. (2007). *Distributed systems: Principles and paradigms* (2nd ed.). Pearson Prentice Hall.
-# uts-sister
