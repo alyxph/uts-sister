@@ -1,0 +1,60 @@
+# ============================================================
+# docker-compose.yml — Bonus: Two-service Pub-Sub topology
+#
+# Services:
+#   aggregator — FastAPI log aggregator (always running)
+#   publisher  — One-shot publisher simulation (depends_on aggregator)
+#
+# Internal network only; no external services.
+# ============================================================
+
+version: "3.9"
+
+services:
+
+  aggregator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: uts-aggregator
+    ports:
+      - "8080:8080"
+    volumes:
+      # Persistent dedup store: survives container restarts
+      - dedup_data:/app/data
+    environment:
+      DEDUP_DB_PATH: /app/data/dedup.db
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  publisher:
+    build:
+      context: .
+      dockerfile: Dockerfile.publisher
+    container_name: uts-publisher
+    depends_on:
+      aggregator:
+        condition: service_healthy
+    environment:
+      AGGREGATOR_URL: http://aggregator:8080
+      TOTAL_EVENTS: "6000"
+      DUPLICATE_RATE: "0.25"
+      BATCH_SIZE: "100"
+      TOPIC_COUNT: "5"
+    networks:
+      - internal
+    restart: "no"   # Run once, then exit
+
+volumes:
+  dedup_data:
+
+networks:
+  internal:
+    driver: bridge
