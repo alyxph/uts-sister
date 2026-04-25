@@ -2,6 +2,10 @@
 
 > UTS Sistem Terdistribusi dan Parallel — Idempotent Consumer + Persistent Deduplication
 
+Link YouTube (Demo): _[https://youtu.be/ZCJkv1Li8bo]_
+
+Link Dokumen Laporan: [Google Drive](https://drive.google.com/file/d/18NTurz9DJPDY7oJHdKc9KNrA2jhmq7ys/view?usp=sharing)
+
 ---
 
 ## Fitur Utama
@@ -175,7 +179,7 @@ uts-aggregator/
 
 ## Video Demo
 
-Link YouTube: _[Tambahkan link setelah upload]_
+Link YouTube: _[Tambahkan link YouTube]_
 
 Durasi: 5–8 menit  
 Konten:
