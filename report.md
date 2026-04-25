@@ -1,9 +1,8 @@
 # Laporan UTS: Pub-Sub Log Aggregator dengan Idempotent Consumer dan Deduplication
 
 **Mata Kuliah:** Sistem Terdistribusi dan Parallel  
-**Nama:** [Nama Mahasiswa]  
-**NIM:** [NIM]  
-**Tanggal:** 2025
+**Nama:** alief rachmattul islam  
+**NIM:** 11231007
 
 ---
 
